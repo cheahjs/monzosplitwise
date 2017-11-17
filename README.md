@@ -1,2 +1,2 @@
 # monzo-splitwise
-Automatically adding Monzo transactions onto Splitwise
+Automatically adding Monzo transactions to Splitwise.
