@@ -28,6 +28,8 @@ var (
 	ErrUnauthenticatedRequest = fmt.Errorf("your request was not sent with a valid token")
 	// ErrNoTransactionFound No transaction found
 	ErrNoTransactionFound = fmt.Errorf("no transaction found with ID")
+	// ErrNoRefreshToken No refresh token found, confidential clients only
+	ErrNoRefreshToken = fmt.Errorf("no refresh token, only confidential clients are allowed to refresh")
 )
 
 // MonzoClient stores authentication data required for API calls
@@ -98,6 +100,9 @@ func ExchangeAuth(clientID, clientSecret, redirectURI, code string) (*MonzoClien
 
 // RefreshToken refreshes the access token using the refresh token
 func (m *MonzoClient) RefreshToken() error {
+	if m.refreshToken == "" {
+		return ErrNoRefreshToken
+	}
 	values := url.Values{}
 	values.Set("grant_type", grantTypeRefresh)
 	values.Set("client_id", m.clientID)
