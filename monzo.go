@@ -17,8 +17,11 @@ var (
 	// The root URL we will base all queries off of. Currently only production is supported.
 	BaseMonzoURL = "https://api.monzo.com"
 
+	// OAuth response type
+	ResponseType = "code"
+
 	// OAuth grant type.
-	GrantTypePassword = "password"
+	GrantTypeRefresh = "refresh_token"
 
 	// 401 response code
 	ErrUnauthenticatedRequest = fmt.Errorf("your request was not sent with a valid token")
@@ -29,18 +32,20 @@ var (
 
 type MonzoClient struct {
 	accessToken   string
+	refreshToken  string
 	authenticated bool
 	expiryTime    time.Time
 }
 
+
 // Function Authenticate authenticates the user using the oath flow, returning an authenticated MonzoClient
-func Authenticate(clientId, clientSecret, username, password string) (*MonzoClient, error) {
+func Authenticate(clientId, clientSecret, redirect_uri, password string) (*MonzoClient, error) {
 	if clientId == "" || clientSecret == "" || username == "" || password == "" {
 		return nil, fmt.Errorf("zero value passed to Authenticate")
 	}
 
 	values := url.Values{}
-	values.Set("grant_type", GrantTypePassword)
+	values.Set("grant_type", GrantTypeRefresh)
 	values.Set("client_id", clientId)
 	values.Set("client_secret", clientSecret)
 	values.Set("username", username)
@@ -230,152 +235,6 @@ func (m *MonzoClient) Accounts() ([]Account, error) {
 	}
 
 	return acresp.Accounts, nil
-}
-
-// CreateFeedItem creates a feed item in the user's application.
-// TODO: There is no way to delete a feed item currently, so use with caution.
-func (m *MonzoClient) CreateFeedItem(accountId, title, imageURL, bgColor, bodyColor, titleColor, body string) error {
-	type feedItemResponse struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-	}
-
-	if imageURL == "" {
-		return fmt.Errorf("imageURL cannot be empty")
-	}
-
-	if accountId == "" {
-		return fmt.Errorf("accountId cannot be empty")
-	}
-
-	if title == "" {
-		return fmt.Errorf("title cannot be empty")
-	}
-
-	if bgColor == "" {
-		bgColor = "#FCF1EE"
-	}
-
-	if bodyColor == "" {
-		bodyColor = "#FCF1EE"
-	}
-
-	if titleColor == "" {
-		titleColor = "#333"
-	}
-
-	params := map[string]string{
-		"account_id":               accountId,
-		"type":                     "basic",
-		"params[title]":            title,
-		"params[image_url]":        imageURL,
-		"params[background_color]": bgColor,
-		"params[body_color]":       bodyColor,
-		"params[title_color]":      titleColor,
-		"params[body]":             body,
-	}
-
-	resp, err := m.callWithAuth("POST", "feed", params)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	var fresp feedItemResponse
-	b, err := ioutil.ReadAll(resp.Body)
-	if err := json.Unmarshal(b, &fresp); err != nil {
-		return err
-	}
-
-	// Generate a nicely formatted error code back to the caller
-	if fresp.Code != "" {
-		return fmt.Errorf("%v: %v", fresp.Code, fresp.Message)
-	}
-
-	return nil
-}
-
-// Registers a web hook. Each time a matching event occurs, we will make a POST call to the URL you provide. If the call fails, we will retry up to a maximum of 5 attempts, with exponential backoff.
-func (m *MonzoClient) RegisterWebhook(accountId, URL string) (*Webhook, error) {
-	type registerWebhookResponse struct {
-		Webhook Webhook `json:"webhook"`
-	}
-
-	if accountId == "" {
-		return nil, fmt.Errorf("accountId cannot be empty")
-	}
-
-	if URL == "" {
-		return nil, fmt.Errorf("URL cannot be empty")
-	}
-
-	params := map[string]string{
-		"account_id": accountId,
-		"url":        URL,
-	}
-
-	resp, err := m.callWithAuth("POST", "webhooks", params)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var wresp registerWebhookResponse
-	b, err := ioutil.ReadAll(resp.Body)
-	if err := json.Unmarshal(b, &wresp); err != nil {
-		return nil, err
-	}
-
-	return &wresp.Webhook, nil
-}
-
-// Deletes a web hook. When you delete a web hook, we will no longer send notifications to it.
-func (m *MonzoClient) DeleteWebhook(webhookId string) error {
-	if webhookId == "" {
-		return fmt.Errorf("webhookId cannot be empty")
-	}
-
-	_, err := m.callWithAuth("DELETE", fmt.Sprintf("webhooks/%s", webhookId), nil)
-	return err
-}
-
-// Registers an attachment. Once you have obtained a URL for an attachment, either by uploading to the upload_url obtained from the upload endpoint above or by hosting a remote image, this URL can then be registered against a transaction. Once an attachment is registered against a transaction this will be displayed on the detail page of a transaction within the Monzo app.
-func (m *MonzoClient) RegisterAttachment(externalId, fileURL, fileType string) (*Attachment, error) {
-	type registerAttachmentResponse struct {
-		Attachment Attachment `json:"attachment"`
-	}
-
-	if externalId == "" {
-		return nil, fmt.Errorf("externalId cannot be empty")
-	}
-
-	if fileURL == "" {
-		return nil, fmt.Errorf("fileURL cannot be empty")
-	}
-
-	if fileType == "" {
-		return nil, fmt.Errorf("fileType cannot be empty")
-	}
-
-	params := map[string]string{
-		"external_id": externalId,
-		"file_type":   fileType,
-		"file_url":    fileURL,
-	}
-
-	resp, err := m.callWithAuth("POST", "attachment/register", params)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var aresp registerAttachmentResponse
-	b, err := ioutil.ReadAll(resp.Body)
-	if err := json.Unmarshal(b, &aresp); err != nil {
-		return nil, err
-	}
-
-	return &aresp.Attachment, nil
 }
 
 func buildUrl(path string) string {
