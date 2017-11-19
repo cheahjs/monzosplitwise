@@ -126,6 +126,7 @@ func runJob(config monzo.Config) {
 				groupName := strings.ToLower(strings.Split(part, "-")[1])
 				fmt.Println("Adding expense to group", groupName)
 				for _, group := range groups {
+					found := false
 					if strings.ToLower(strings.Replace(group.Name, " ", "", -1)) == groupName {
 						// Add expense to group
 						expense, err := monzo.AddExpense(
@@ -142,7 +143,11 @@ func runJob(config monzo.Config) {
 						checkError(err)
 						fmt.Println("Added expense:")
 						fmt.Println(expense)
+						found := true
 						break
+					}
+					if !found {
+						fmt.Println("Warning, did not find any groups corresponding to", groupName)
 					}
 				}
 				break
