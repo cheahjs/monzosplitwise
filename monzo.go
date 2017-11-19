@@ -34,12 +34,12 @@ var (
 
 // MonzoClient stores authentication data required for API calls
 type MonzoClient struct {
-	accessToken   string
-	refreshToken  string
+	AccessToken   string
+	RefreshToken  string
+	ClientID      string
+	ClientSecret  string
+	ExpiryTime    time.Time
 	authenticated bool
-	clientID      string
-	clientSecret  string
-	expiryTime    time.Time
 }
 
 // GetMonzoAuthURL returns an OAuth URL that redirects to redirectURI
@@ -90,24 +90,24 @@ func ExchangeAuth(clientID, clientSecret, redirectURI, code string) (*MonzoClien
 
 	return &MonzoClient{
 		authenticated: true,
-		accessToken:   response.AccessToken,
-		refreshToken:  response.RefreshToken,
-		expiryTime:    time.Now().Add(time.Duration(response.ExpiresIn) * time.Second),
-		clientID:      clientID,
-		clientSecret:  clientSecret,
+		AccessToken:   response.AccessToken,
+		RefreshToken:  response.RefreshToken,
+		ExpiryTime:    time.Now().Add(time.Duration(response.ExpiresIn) * time.Second),
+		ClientID:      clientID,
+		ClientSecret:  clientSecret,
 	}, nil
 }
 
-// RefreshToken refreshes the access token using the refresh token
-func (m *MonzoClient) RefreshToken() error {
-	if m.refreshToken == "" {
+// RefreshAccessToken refreshes the access token using the refresh token
+func (m *MonzoClient) RefreshAccessToken() error {
+	if m.RefreshToken == "" {
 		return ErrNoRefreshToken
 	}
 	values := url.Values{}
 	values.Set("grant_type", grantTypeRefresh)
-	values.Set("client_id", m.clientID)
-	values.Set("client_secret", m.clientSecret)
-	values.Set("refresh_token", m.refreshToken)
+	values.Set("client_id", m.ClientID)
+	values.Set("client_secret", m.ClientSecret)
+	values.Set("refresh_token", m.RefreshToken)
 
 	resp, err := http.PostForm(buildURL("oauth2/token"), values)
 	if err != nil {
@@ -138,16 +138,16 @@ func (m *MonzoClient) RefreshToken() error {
 	}
 
 	m.authenticated = true
-	m.accessToken = response.AccessToken
-	m.refreshToken = response.RefreshToken
-	m.expiryTime = time.Now().Add(time.Duration(response.ExpiresIn) * time.Second)
+	m.AccessToken = response.AccessToken
+	m.RefreshToken = response.RefreshToken
+	m.ExpiryTime = time.Now().Add(time.Duration(response.ExpiresIn) * time.Second)
 
 	return nil
 }
 
 // ExpiresAt returns the time that the current OAuth token expires and will have to be refreshed.
 func (m *MonzoClient) ExpiresAt() time.Time {
-	return m.expiryTime
+	return m.ExpiryTime
 }
 
 // Authenticated returns true if there exists a valid token
@@ -181,7 +181,7 @@ func (m *MonzoClient) callWithAuth(methodType, URL string, params map[string]str
 			req.URL.RawQuery = query.Encode()
 		}
 
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", m.accessToken))
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", m.AccessToken))
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			return nil, err
@@ -204,7 +204,7 @@ func (m *MonzoClient) callWithAuth(methodType, URL string, params map[string]str
 		}
 
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", m.accessToken))
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", m.AccessToken))
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {
 			return nil, err

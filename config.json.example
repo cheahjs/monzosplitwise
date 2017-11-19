@@ -1,0 +1,26 @@
+{
+    "Monzo": {
+        "AccessToken": "",
+        "RefreshToken": "",
+        "ClientID": "",
+        "ClientSecret": "",
+        "ExpiryTime": "2001-01-01T12:00:00.0000000Z"
+    },
+    "Splitwise": {
+        "OAuthConfig": {
+            "ConsumerKey": "",
+            "ConsumerSecret": "",
+            "CallbackURL": "localhost",
+            "Endpoint": {
+                "RequestTokenURL": "https://secure.splitwise.com/api/v3.0/get_request_token",
+                "AuthorizeURL": "https://secure.splitwise.com/oauth/authorize",
+                "AccessTokenURL": "https://secure.splitwise.com/oauth/access_token"
+            },
+            "Signer": null
+        },
+        "Token": {
+            "Token": "",
+            "TokenSecret": ""
+        }
+    }
+}
