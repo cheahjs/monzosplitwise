@@ -18,6 +18,7 @@ type Account struct {
 	SortCode      string    `json:"sort_code"`
 	Description   string    `json:"description"`
 	Created       time.Time `json:"created"`
+	Type          string    `json:"type"`
 }
 
 type Transaction struct {
