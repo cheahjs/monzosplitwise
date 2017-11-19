@@ -93,7 +93,7 @@ func runJob(config monzo.Config) {
 	// Get current Splitwise user
 	curUser, err := monzo.GetCurrentUser(config.Splitwise)
 	checkError(err)
-	fmt.Printf("Logged in as Splitwise user", curUser.Email)
+	fmt.Println("Logged in as Splitwise user", curUser.Email)
 
 	// Get Splitwise expenses
 	expenses, err := monzo.GetExpenses(config.Splitwise, "", dateSince, 100)
