@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/dghubble/oauth1"
 )
@@ -44,24 +43,6 @@ func GetSplitwiseTokens(config oauth1.Config) (*oauth1.Token, error) {
 	return oauth1.NewToken(accessToken, accessSecret), err
 }
 
-type Expense struct {
-	ID              int       `json:"id"`
-	GroupID         int       `json:"group_id"`
-	FriendshipID    int       `json:"friendship_id"`
-	ExpenseBundleID int       `json:"expense_bundle_id"`
-	Description     string    `json:"description"`
-	Details         string    `json:"details"`
-	Payment         bool      `json:"payment"`
-	Cost            string    `json:"cost"`
-	Date            time.Time `json:"date"`
-	CreatedAt       time.Time `json:"created_at"`
-	//CreatedBy        string    `json:"created_by"`
-	UpdatedAt time.Time `json:"updated_at"`
-	//UpdatedBy        string    `json:"updated_by"`
-	DeletedAt time.Time `json:"deleted_at"`
-	//DeletedBy        string    `json:"deleted_by"`
-}
-
 func GetExpenses(config SplitwiseConfig, groupID, datedAfter string, limit int) ([]Expense, error) {
 	type expensesResponse struct {
 		Expenses []Expense `json:"expenses"`
@@ -93,13 +74,6 @@ func GetExpenses(config SplitwiseConfig, groupID, datedAfter string, limit int) 
 	}
 
 	return response.Expenses, nil
-}
-
-type Group struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	GroupType string    `json:"group_type"`
-	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func GetGroups(config SplitwiseConfig) ([]Group, error) {
@@ -167,12 +141,6 @@ func AddExpense(config SplitwiseConfig,
 	}
 
 	return &response.Expenses[0], nil
-}
-
-type User struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
-	// We don't care about the other attributes for now
 }
 
 func GetCurrentUser(config SplitwiseConfig) (*User, error) {
