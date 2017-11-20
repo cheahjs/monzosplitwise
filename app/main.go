@@ -132,6 +132,7 @@ func runJob(config ms.Config) {
 					found := false
 					if strings.ToLower(strings.Replace(group.Name, " ", "", -1)) == groupName {
 						// Add expense to group
+						// TODO: Refactor AddExpense to accept an Expense object
 						expense, err := splitwise.AddExpense(
 							config.Splitwise,
 							"false",
