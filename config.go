@@ -1,24 +1,17 @@
-package monzo
+package monzosplitwise
 
 import (
-	"github.com/dghubble/oauth1"
+	"github.com/cheahjs/monzosplitwise/monzo"
+	"github.com/cheahjs/monzosplitwise/splitwise"
 )
 
 // Config holds all config data for app
 type Config struct {
-	Monzo     MonzoConfig
-	Splitwise SplitwiseConfig
+	Monzo     monzo.MonzoConfig
+	Splitwise splitwise.SplitwiseConfig
 }
 
-// MonzoConfig holds config for Monzo's API
-type MonzoConfig MonzoClient
-
-// SplitwiseConfig holds config for Splitwise's API
-type SplitwiseConfig struct {
-	OAuthConfig oauth1.Config
-	Token       oauth1.Token
-}
-
+// GetDefaultConfig returns a default config object with blank fields
 func GetDefaultConfig() Config {
 	config := Config{}
 	return config

@@ -8,11 +8,13 @@ import (
 	"strings"
 	"time"
 
-	monzo "github.com/cheahjs/monzosplitwise"
+	ms "github.com/cheahjs/monzosplitwise"
+	"github.com/cheahjs/monzosplitwise/monzo"
+	"github.com/cheahjs/monzosplitwise/splitwise"
 )
 
 func main() {
-	fmt.Println("Starting monzosplitwise.")
+	fmt.Println("Starting MonzoSplitwise.")
 
 	// Config loading
 	fmt.Println("Loading config.json.")
@@ -24,7 +26,7 @@ func main() {
 	}
 	// Getting Splitwise OAuth tokens
 	if config.Splitwise.Token.Token == "" {
-		tokens, err := monzo.GetSplitwiseTokens(config.Splitwise.OAuthConfig)
+		tokens, err := splitwise.GetSplitwiseTokens(config.Splitwise.OAuthConfig)
 		checkError(err)
 		config.Splitwise.Token = *tokens
 		saveConfig(config)
@@ -56,7 +58,7 @@ func checkError(err error) {
 	}
 }
 
-func runJob(config monzo.Config) {
+func runJob(config ms.Config) {
 	monzoClient := monzo.MonzoClient(config.Monzo)
 	// Refresh token if expired
 	if !monzoClient.Authenticated() {
@@ -66,6 +68,7 @@ func runJob(config monzo.Config) {
 		err = saveConfig(config)
 		checkError(err)
 	}
+
 	// Get account to use, prefer CA over PP
 	accounts, err := monzoClient.Accounts()
 	checkError(err)
@@ -91,17 +94,17 @@ func runJob(config monzo.Config) {
 	}
 
 	// Get current Splitwise user
-	curUser, err := monzo.GetCurrentUser(config.Splitwise)
+	curUser, err := splitwise.GetCurrentUser(config.Splitwise)
 	checkError(err)
 	fmt.Println("Logged in as Splitwise user", curUser.Email)
 
 	// Get Splitwise expenses
-	expenses, err := monzo.GetExpenses(config.Splitwise, "", dateSince, 100)
+	expenses, err := splitwise.GetExpenses(config.Splitwise, "", dateSince, 100)
 	checkError(err)
 	fmt.Printf("Fetched %v expenses\n", len(expenses))
 
 	// Get Splitwise groups
-	groups, err := monzo.GetGroups(config.Splitwise)
+	groups, err := splitwise.GetGroups(config.Splitwise)
 	checkError(err)
 	fmt.Printf("Fetched %v groups\n", len(groups))
 
@@ -129,7 +132,7 @@ func runJob(config monzo.Config) {
 					found := false
 					if strings.ToLower(strings.Replace(group.Name, " ", "", -1)) == groupName {
 						// Add expense to group
-						expense, err := monzo.AddExpense(
+						expense, err := splitwise.AddExpense(
 							config.Splitwise,
 							"false",
 							fmt.Sprintf("%v", (math.Abs(float64(tnx.Amount))/100.0)),
@@ -143,7 +146,7 @@ func runJob(config monzo.Config) {
 						checkError(err)
 						fmt.Println("Added expense:")
 						fmt.Println(expense)
-						found := true
+						found = true
 						break
 					}
 					if !found {
@@ -158,8 +161,8 @@ func runJob(config monzo.Config) {
 	fmt.Println("Done")
 }
 
-func readConfig() (monzo.Config, error) {
-	config := monzo.Config{}
+func readConfig() (ms.Config, error) {
+	config := ms.Config{}
 	// config.json exists
 	if _, fileerr := os.Stat("config.json"); !os.IsNotExist(fileerr) {
 		file, err := os.Open("config.json")
@@ -175,14 +178,14 @@ func readConfig() (monzo.Config, error) {
 		return config, err
 	}
 	// config.json does not exist, create and return error
-	err := saveConfig(monzo.GetDefaultConfig())
+	err := saveConfig(ms.GetDefaultConfig())
 	if err != nil {
 		return config, err
 	}
 	return config, fmt.Errorf("config.json didn't exist, created")
 }
 
-func saveConfig(config monzo.Config) error {
+func saveConfig(config ms.Config) error {
 	file, err := os.Create("config.json")
 	if err != nil {
 		return err
