@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"strings"
 	"time"
@@ -108,58 +107,95 @@ func runJob(config ms.Config) {
 	checkError(err)
 	fmt.Printf("Fetched %v groups\n", len(groups))
 
-	// Find transactions with #splitwise-<group>
-	for _, tnx := range transactions {
-		notes := tnx.Notes
-		parts := strings.Fields(notes)
-		for _, part := range parts {
-			if strings.HasPrefix(part, "#splitwise-") {
-				// Check if we already have an expense with this transaction
-				alreadyExists := false
-				for _, expense := range expenses {
-					if strings.Contains(expense.Details, tnx.ID) {
-						alreadyExists = true
-						break
-					}
-				}
-				if alreadyExists {
-					break
-				}
-				// Find corresponding group using name
-				groupName := strings.ToLower(strings.Split(part, "-")[1])
-				fmt.Println("Adding expense to group", groupName)
-				for _, group := range groups {
-					found := false
-					if strings.ToLower(strings.Replace(group.Name, " ", "", -1)) == groupName {
-						// Add expense to group
-						// TODO: Refactor AddExpense to accept an Expense object
-						expense, err := splitwise.AddExpense(
-							config.Splitwise,
-							"false",
-							fmt.Sprintf("%v", (math.Abs(float64(tnx.Amount))/100.0)),
-							tnx.Currency,
-							tnx.Merchant.Name,
-							fmt.Sprintf("%v", group.ID),
-							fmt.Sprintf("MonzoTransaction:%v", tnx.ID),
-							tnx.Created,
-							"quickadd",
-							fmt.Sprintf("%v", curUser.ID))
-						checkError(err)
-						fmt.Println("Added expense:")
-						fmt.Println(expense)
-						found = true
-						break
-					}
-					if !found {
-						fmt.Println("Warning, did not find any groups corresponding to", groupName)
-					}
-				}
+	// Find transactions with #splitwise as note
+	tagged := getTaggedTransactions(transactions)
+
+	for _, v := range tagged {
+		tag := v.Tag
+		tnx := v.Transaction
+
+		// Check if expense already exists
+		exists := false
+		for _, exp := range expenses {
+			if strings.Contains(exp.Details, tnx.ID) {
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
+
+		var groupID string
+		var groupName string
+		var groupUsers []string
+
+		// Get group ID
+		switch tag {
+		case "#splitwise":
+		case "#splitwise-":
+			groupID = "0"
+			groupName = "Non-group expenses"
+			groupUsers = append(groupUsers, fmt.Sprintf("%v", curUser.ID))
+		default:
+			groupName = strings.SplitN(tag, "-", 2)[1]
+			group, err := findGroupByName(groups, groupName)
+			if err != nil {
+				fmt.Println("Group not found:", groupName)
+				continue
+			}
+			groupID = fmt.Sprintf("%v", group.ID)
+			for _, member := range group.Members {
+				groupUsers = append(groupUsers, fmt.Sprintf("%v", member.ID))
+			}
+		}
+		fmt.Println("Adding expense to group", groupName)
+		expense, err := splitwise.AddExpense(
+			config.Splitwise, "false", tnx.Amount, tnx.Currency, tnx.Merchant.Name,
+			groupID, fmt.Sprintf("MonzoTransaction:%v", tnx.ID), tnx.Created,
+			"split", fmt.Sprintf("%v", curUser.ID), groupUsers)
+		checkError(err)
+		fmt.Println("Added expense:")
+		fmt.Println(expense)
+	}
+
+	fmt.Println("Done")
+}
+
+func findGroupByName(groups []splitwise.Group, name string) (*splitwise.Group, error) {
+	normName := strings.ToLower(name)
+	for _, v := range groups {
+		groupName := strings.ToLower(strings.Replace(v.Name, " ", "", -1))
+		if groupName == normName {
+			return &v, nil
+		}
+	}
+	return nil, fmt.Errorf("No group found")
+}
+
+type taggedTransaction struct {
+	Transaction monzo.Transaction
+	Tag         string
+}
+
+func getTaggedTransactions(transactions []monzo.Transaction) []taggedTransaction {
+	var tagged []taggedTransaction
+	for _, v := range transactions {
+		if v.Amount > 0 {
+			// ignore credit transactions
+			continue
+		}
+		notes := v.Notes
+		fields := strings.Fields(notes)
+
+		for _, field := range fields {
+			if strings.Contains(field, "#splitwise") {
+				tagged = append(tagged, taggedTransaction{v, field})
 				break
 			}
 		}
 	}
-
-	fmt.Println("Done")
+	return tagged
 }
 
 func readConfig() (ms.Config, error) {

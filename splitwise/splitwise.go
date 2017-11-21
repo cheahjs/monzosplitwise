@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/dghubble/oauth1"
+	"github.com/rhymond/go-money"
 )
 
 const (
@@ -99,26 +101,41 @@ func GetGroups(config SplitwiseConfig) ([]Group, error) {
 }
 
 func AddExpense(config SplitwiseConfig,
-	payment, cost, currencyCode, description, groupID, details, date, creationMethod,
-	userID string) (*Expense, error) {
+	payment string, cost int, currencyCode, description, groupID, details, date,
+	creationMethod, self string, users []string) (*Expense, error) {
 	type expensesResponse struct {
 		Expenses []Expense `json:"expenses"`
 	}
 	ctx := context.Background()
 	httpClient := config.OAuthConfig.Client(ctx, &config.Token)
 
+	stringFullCost := fmt.Sprintf("%v", (math.Abs(float64(cost)) / 100.0))
+	costMoney := money.New(int64(cost), "GBP").Absolute()
+	userCount := len(users)
+	splits, err := costMoney.Split(userCount)
+	if err != nil {
+		return nil, err
+	}
+
 	form := url.Values{}
 	form.Set("payment", payment)
-	form.Set("cost", cost)
+	form.Set("cost", stringFullCost)
 	form.Set("currency_code", currencyCode)
 	form.Set("description", description)
 	form.Set("group_id", groupID)
 	form.Set("details", details)
 	form.Set("date", date)
 	form.Set("creation_method", creationMethod)
-	form.Set("users__0__user_id", userID)
-	form.Set("users__0__paid_share", cost)
-	form.Set("users__0__owed_share", cost)
+
+	for i, user := range users {
+		form.Set(fmt.Sprintf("users__%v__user_id", i), user)
+		if user == self {
+			form.Set(fmt.Sprintf("users__%v__paid_share", i), stringFullCost)
+		} else {
+			form.Set(fmt.Sprintf("users__%v__paid_share", i), "0")
+		}
+		form.Set(fmt.Sprintf("users__%v__owed_share", i), fmt.Sprintf("%v", (math.Abs(float64(splits[i+1].Amount()))/100.0)))
+	}
 	fmt.Println(form)
 
 	req, err := http.NewRequest("POST", CreateExpenseURL, strings.NewReader(form.Encode()))
