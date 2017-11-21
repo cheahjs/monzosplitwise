@@ -134,7 +134,7 @@ func AddExpense(config SplitwiseConfig,
 		} else {
 			form.Set(fmt.Sprintf("users__%v__paid_share", i), "0")
 		}
-		form.Set(fmt.Sprintf("users__%v__owed_share", i), fmt.Sprintf("%v", (math.Abs(float64(splits[i+1].Amount()))/100.0)))
+		form.Set(fmt.Sprintf("users__%v__owed_share", i), fmt.Sprintf("%v", (math.Abs(float64(splits[i].Amount()))/100.0)))
 	}
 	fmt.Println(form)
 
