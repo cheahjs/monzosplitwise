@@ -132,9 +132,7 @@ func runJob(config ms.Config) {
 
 		// Get group ID
 		switch strings.ToLower(tag) {
-		case "#splitwise":
-			fallthrough
-		case "#splitwise-":
+		case "#splitwise", "#splitwise-":
 			groupID = "0"
 			groupName = "Non-group expenses"
 			groupUsers = append(groupUsers, fmt.Sprintf("%v", curUser.ID))
