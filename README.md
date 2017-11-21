@@ -1,7 +1,7 @@
 # MonzoSplitwise
 Automatically adding Monzo transactions to Splitwise.
 
-Application searches Monzo transaction history for transactions with notes that contain `#splitwise-<groupname>`. `<groupname>` corresponds to the name of a Splitwise group, minus any spaces in the name.
+Application searches Monzo transaction history for transactions with notes that contain `#splitwise` or `#splitwise-<groupname>`. `<groupname>` corresponds to the name of a Splitwise group, minus any spaces in the name. If no group is specified, the expense is added to Non-group expenses.
 
 ![Screenshot](assets/screenshot.png)
 
