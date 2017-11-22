@@ -9,7 +9,12 @@ Application searches Monzo transaction history for transactions with notes that 
 
 # Usage
 
-`go run app/main.go`
+```bash
+git clone https://github.com/cheahjs/monzosplitwise
+cd monzosplitwise
+cp config.json.example config.json
+go run app/main.go
+```
 
 Requires:
 
