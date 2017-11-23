@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	ms "github.com/cheahjs/monzosplitwise"
@@ -58,57 +59,87 @@ func checkError(err error) {
 }
 
 func runJob(config ms.Config) {
-	monzoClient := monzo.MonzoClient(config.Monzo)
-	// Refresh token if expired
-	if !monzoClient.Authenticated() {
-		err := monzoClient.RefreshAccessToken()
-		checkError(err)
-		config.Monzo = monzo.MonzoConfig(monzoClient)
-		err = saveConfig(config)
-		checkError(err)
-	}
+	var wg sync.WaitGroup
 
-	// Get account to use, prefer CA over PP
-	accounts, err := monzoClient.Accounts()
-	checkError(err)
-	account := accounts[0]
-	for _, v := range accounts {
-		if v.Type == "uk_retail" {
-			account = v
-		}
-	}
-	// Get transactions, 100 transactions and 15 days should be long enough
-	// to get all transactions within context
-	// This will break if we've made more than 100 transactions in 15 days.
-	// TODO: Support pagination
+	// Check for Monzo/Splitwise transactions for the past 15 days
 	dateSince := time.Now().Add(time.Duration(-15*24) * time.Hour).Format(time.RFC3339)
-	transactions, err := monzoClient.Transactions(
-		account.ID,
-		dateSince,
-		"", 100)
-	checkError(err)
-	fmt.Printf("Fetched %v transactions\n", len(transactions))
-	if len(transactions) >= 100 {
-		fmt.Println("100 transactions fetched, might be missing some newer transactions!")
-	}
 
-	// Get current Splitwise user
-	curUser, err := splitwise.GetCurrentUser(config.Splitwise)
-	checkError(err)
-	fmt.Println("Logged in as Splitwise user", curUser.Email)
+	monzoClient := monzo.MonzoClient(config.Monzo)
+	var transactions []monzo.Transaction
+	var tagged []taggedTransaction
+	// Monzo work
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// Refresh token if expired
+		if !monzoClient.Authenticated() {
+			err := monzoClient.RefreshAccessToken()
+			checkError(err)
+			config.Monzo = monzo.MonzoConfig(monzoClient)
+			err = saveConfig(config)
+			checkError(err)
+		}
 
-	// Get Splitwise expenses
-	expenses, err := splitwise.GetExpenses(config.Splitwise, "", dateSince, 100)
-	checkError(err)
-	fmt.Printf("Fetched %v expenses\n", len(expenses))
+		// Get account to use, prefer CA over PP
+		accounts, err := monzoClient.Accounts()
+		checkError(err)
+		account := accounts[0]
+		for _, v := range accounts {
+			if v.Type == "uk_retail" {
+				account = v
+			}
+		}
 
-	// Get Splitwise groups
-	groups, err := splitwise.GetGroups(config.Splitwise)
-	checkError(err)
-	fmt.Printf("Fetched %v groups\n", len(groups))
+		// Get transactions, 100 transactions and 15 days should be long enough
+		// to get all transactions within context
+		// This will break if we've made more than 100 transactions in 15 days.
+		// TODO: Support pagination
+		transactions, err = monzoClient.Transactions(
+			account.ID,
+			dateSince,
+			"", 100)
+		checkError(err)
+		fmt.Printf("Fetched %v transactions\n", len(transactions))
+		if len(transactions) >= 100 {
+			fmt.Println("100 transactions fetched, might be missing some newer transactions!")
+		}
 
-	// Find transactions with #splitwise as note
-	tagged := getTaggedTransactions(transactions)
+		// Find transactions with #splitwise as note
+		tagged = getTaggedTransactions(transactions)
+	}()
+
+	var curUser splitwise.User
+	var expenses []splitwise.Expense
+	var groups []splitwise.Group
+
+	// Splitwise work
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// Get current Splitwise user
+		curUser, err := splitwise.GetCurrentUser(config.Splitwise)
+		checkError(err)
+		fmt.Println("Logged in as Splitwise user", curUser.Email)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// Get Splitwise expenses
+		expenses, err := splitwise.GetExpenses(config.Splitwise, "", dateSince, 100)
+		checkError(err)
+		fmt.Printf("Fetched %v expenses\n", len(expenses))
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// Get Splitwise groups
+		groups, err := splitwise.GetGroups(config.Splitwise)
+		checkError(err)
+		fmt.Printf("Fetched %v groups\n", len(groups))
+	}()
+
+	// Wait for all work to be done
+	wg.Wait()
 
 	for _, v := range tagged {
 		tag := v.Tag
