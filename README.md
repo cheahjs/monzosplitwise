@@ -13,7 +13,7 @@ Application searches Monzo transaction history for transactions with notes that 
 git clone https://github.com/cheahjs/monzosplitwise
 cd monzosplitwise
 cp config.json.example config.json
-go run app/main.go
+./run_loop.sh
 ```
 
 Requires:
@@ -23,3 +23,5 @@ Requires:
 * [Splitwise OAuth client details](https://secure.splitwise.com/oauth_clients)
 
 Copy `config.json.example` to `config.json`, and fill in the necessary details. Upon first run, the app will guide you through obtaining access tokens for both Monzo and Splitwise.
+
+It is recommended to replace the `run_loop.sh` script with a cronjob.
