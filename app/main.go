@@ -117,25 +117,30 @@ func runJob(config ms.Config) {
 	go func() {
 		defer wg.Done()
 		// Get current Splitwise user
-		curUser, err := splitwise.GetCurrentUser(config.Splitwise)
-		checkError(err)
-		fmt.Println("Logged in as Splitwise user", curUser.Email)
+                currentUser, err := splitwise.GetCurrentUser(config.Splitwise)
+                checkError(err)
+                curUser = *currentUser
+                fmt.Println("Logged in as Splitwise user", curUser.Email)
 	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// Get Splitwise expenses
-		expenses, err := splitwise.GetExpenses(config.Splitwise, "", dateSince, 100)
-		checkError(err)
-		fmt.Printf("Fetched %v expenses\n", len(expenses))
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+		var err error
 		// Get Splitwise groups
-		groups, err := splitwise.GetGroups(config.Splitwise)
+		groups, err = splitwise.GetGroups(config.Splitwise)
 		checkError(err)
 		fmt.Printf("Fetched %v groups\n", len(groups))
+                // Get Splitwise expenses
+                expenses, err = splitwise.GetExpenses(config.Splitwise, "", dateSince, 100)
+                checkError(err)
+                fmt.Printf("Fetched %v expenses\n", len(expenses))
+                for _, grp := range groups {
+                        group_expenses, err := splitwise.GetExpenses(config.Splitwise, fmt.Sprintf("%d", grp.ID), dateSince, 100)
+                        checkError(err)
+                        fmt.Printf("Fetched %v expenses for %v\n", len(group_expenses), grp.Name)
+                        expenses = append(expenses, group_expenses...)
+//                      fmt.Println(expenses)
+                }
 	}()
 
 	// Wait for all work to be done
