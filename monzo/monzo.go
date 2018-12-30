@@ -44,7 +44,7 @@ type MonzoClient struct {
 
 // GetMonzoAuthURL returns an OAuth URL that redirects to redirectURI
 func GetMonzoAuthURL(clientID, redirectURI string) string {
-	return fmt.Sprintf("https://auth.getmondo.co.uk/?client_id=%s&redirect_uri=%s&response_type=%s", clientID, redirectURI, responseType)
+	return fmt.Sprintf("https://auth.monzo.com/?client_id=%s&redirect_uri=%s&response_type=%s", clientID, redirectURI, responseType)
 }
 
 // ExchangeAuth exchanges the OAuth code for an access token and refresh token
